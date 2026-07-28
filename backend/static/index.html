@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DocuMind — read less, know more</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root{
+    --paper: #f2ede3;
+    --paper-line: #e3dbca;
+    --ink: #2b2620;
+    --ink-soft: #6b6255;
+    --margin: #fffaf0;
+    --highlight: #c96f34;
+    --highlight-soft: #f0d9c4;
+    --rule: #c9bfa8;
+    --mono: "IBM Plex Mono", "Courier New", monospace;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      repeating-linear-gradient(180deg, transparent 0 27px, var(--paper-line) 27px 28px);
+    color:var(--ink);
+    font-family: "Iowan Old Style","Palatino Linotype", Georgia, serif;
+    min-height:100vh;
+  }
+  .wrap{ max-width:1180px; margin:0 auto; padding: 36px 24px 80px; }
+
+  header{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 3px double var(--ink);
+    padding-bottom: 14px; margin-bottom: 28px; flex-wrap:wrap; gap:10px;
+  }
+  header .brand{ display:flex; align-items:baseline; gap:12px; }
+  header .brand .mark{
+    font-family: var(--mono); font-size:13px; letter-spacing:2px;
+    color:var(--highlight); border:1px solid var(--highlight); padding:2px 8px;
+    text-transform:uppercase;
+  }
+  h1{ font-size: 30px; margin:0; font-weight:600; letter-spacing:0.2px; }
+  header p{ margin:0; font-family: var(--mono); font-size:12px; color:var(--ink-soft); letter-spacing:0.5px; }
+
+  .desk{
+    display:grid;
+    grid-template-columns: 1.1fr 1px 1fr;
+    gap: 28px;
+    align-items:start;
+  }
+  .divider{ background: var(--rule); align-self:stretch; }
+
+  .pane-label{
+    font-family: var(--mono); font-size:11px; text-transform:uppercase;
+    letter-spacing:2px; color:var(--ink-soft); margin-bottom:10px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+
+  textarea{
+    width:100%; min-height: 340px; resize:vertical;
+    background: var(--margin);
+    border:1px solid var(--rule);
+    border-radius:2px;
+    padding:16px 18px;
+    font-family: "Iowan Old Style", Georgia, serif;
+    font-size:15.5px; line-height:1.65; color:var(--ink);
+    outline:none;
+  }
+  textarea:focus{ border-color: var(--highlight); box-shadow: 0 0 0 3px var(--highlight-soft); }
+  textarea::placeholder{ color:#9c9282; }
+
+  .filebar{
+    display:flex; align-items:center; gap:12px; margin-top:10px;
+    font-family: var(--mono); font-size:12px; color:var(--ink-soft);
+  }
+  .filebar input[type=file]{ font-family:var(--mono); font-size:12px; }
+  .filebar .fname{ color:var(--highlight); }
+
+  .modes{ display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+  .mode-btn{
+    font-family: var(--mono); font-size:12px; letter-spacing:0.5px;
+    padding:9px 14px; border:1px solid var(--ink); background:transparent;
+    color:var(--ink); cursor:pointer; border-radius:2px;
+    transition: all .15s ease;
+  }
+  .mode-btn:hover{ background: var(--ink); color: var(--paper); }
+  .mode-btn.active{ background: var(--highlight); border-color:var(--highlight); color:#fff; }
+
+  .run-row{ margin-top:18px; display:flex; align-items:center; gap:14px; }
+  .run-btn{
+    font-family: var(--mono); font-size:13px; letter-spacing:1px;
+    padding:12px 26px; background: var(--ink); color: var(--paper);
+    border:none; border-radius:2px; cursor:pointer; text-transform:uppercase;
+  }
+  .run-btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .status{ font-family: var(--mono); font-size:12px; color:var(--ink-soft); min-height:16px; }
+
+  /* Margin / output pane */
+  .margin-pane{ position:relative; padding-left: 18px; }
+  .margin-pane::before{
+    content:""; position:absolute; left:0; top:4px; bottom:4px; width:2px;
+    background: repeating-linear-gradient(180deg, var(--highlight) 0 6px, transparent 6px 12px);
+  }
+  .output{
+    background: var(--margin);
+    border:1px solid var(--rule);
+    border-radius:2px;
+    min-height:340px;
+    padding:20px 22px;
+    font-size:15.5px; line-height:1.7;
+    color:var(--ink);
+  }
+  .output p { margin-top: 0; margin-bottom: 1rem; }
+  .output h1, .output h2, .output h3, .output h4 {
+    font-family: var(--mono);
+    color: var(--highlight);
+    margin-top: 1.2rem;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+  }
+  .output h3 { font-size: 15px; text-transform: uppercase; border-bottom: 1px dashed var(--rule); padding-bottom: 4px; }
+  .output ul, .output ol { padding-left: 22px; margin-bottom: 1rem; }
+  .output li { margin-bottom: 6px; }
+  .output strong { color: var(--ink); font-weight: 700; }
+  .output code { font-family: var(--mono); background: var(--paper); padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+  .output .empty{
+    color:#a89e8c; font-style:italic; font-family: "Iowan Old Style", Georgia, serif;
+  }
+  .cursor{
+    display:inline-block; width:8px; height:16px; background:var(--highlight);
+    vertical-align:text-bottom; animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  footer{
+    margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
+    font-family: var(--mono); font-size:11px; color:var(--ink-soft);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+
+  @media (max-width: 860px){
+    .desk{ grid-template-columns: 1fr; }
+    .divider{ display:none; }
+    .margin-pane{ padding-left:0; }
+    .margin-pane::before{ display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <h1>DocuMind</h1>
+      <span class="mark">AI reading desk</span>
+    </div>
+    <p>paste text or upload a document — get it summarized, distilled, or simplified, live</p>
+  </header>
+
+  <div class="desk">
+    <!-- LEFT: input -->
+    <div class="input-pane">
+      <div class="pane-label"><span>01 — the document</span><span id="charcount">0 chars</span></div>
+      <textarea id="docText" placeholder="Paste an article, report, contract, or essay here…"></textarea>
+
+      <div class="filebar">
+        <label for="fileInput">or upload a file:</label>
+        <input type="file" id="fileInput" accept=".txt,.pdf" />
+        <span class="fname" id="fname"></span>
+      </div>
+
+      <div class="modes" id="modes">
+        <button class="mode-btn active" data-mode="summarize">Summarize</button>
+        <button class="mode-btn" data-mode="key_points">Key Points</button>
+        <button class="mode-btn" data-mode="simplify">Simplify</button>
+      </div>
+
+      <div class="run-row">
+        <button class="run-btn" id="runBtn">Analyze →</button>
+        <span class="status" id="status"></span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- RIGHT: streamed output -->
+    <div class="margin-pane">
+      <div class="pane-label"><span>02 — the reading</span><span id="modeLabel">summarize</span></div>
+      <div class="output" id="output"><span class="empty">Your analysis will appear here, streamed in as it's written…</span></div>
+    </div>
+  </div>
+
+  <footer>
+    <span>DocuMind AI — built with Vibe Coding</span>
+    <span id="healthStatus">checking backend…</span>
+  </footer>
+</div>
+
+<script>
+const docText = document.getElementById('docText');
+const charcount = document.getElementById('charcount');
+const fileInput = document.getElementById('fileInput');
+const fname = document.getElementById('fname');
+const modeBtns = document.querySelectorAll('.mode-btn');
+const modeLabel = document.getElementById('modeLabel');
+const runBtn = document.getElementById('runBtn');
+const statusEl = document.getElementById('status');
+const output = document.getElementById('output');
+const healthStatus = document.getElementById('healthStatus');
+
+let currentMode = 'summarize';
+let selectedFile = null;
+
+docText.addEventListener('input', () => {
+  charcount.textContent = docText.value.length + ' chars';
+});
+
+fileInput.addEventListener('change', () => {
+  selectedFile = fileInput.files[0] || null;
+  fname.textContent = selectedFile ? selectedFile.name : '';
+});
+
+modeBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    modeBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentMode = btn.dataset.mode;
+    modeLabel.textContent = currentMode.replace('_', ' ');
+  });
+});
+
+async function checkHealth(){
+  try{
+    const res = await fetch('/api/health');
+    const data = await res.json();
+    healthStatus.textContent = data.api_key_configured
+      ? 'backend connected'
+      : 'backend running — API key not configured';
+  }catch(e){
+    healthStatus.textContent = 'backend unreachable';
+  }
+}
+checkHealth();
+
+function renderMarkdown(text) {
+  if (typeof marked !== 'undefined' && marked.parse) {
+    return marked.parse(text);
+  }
+  return text;
+}
+
+runBtn.addEventListener('click', async () => {
+  const text = docText.value.trim();
+  if(!text && !selectedFile){
+    statusEl.textContent = 'Paste some text or choose a file first.';
+    return;
+  }
+
+  runBtn.disabled = true;
+  statusEl.textContent = 'thinking…';
+  output.innerHTML = '<span class="cursor"></span>';
+
+  const formData = new FormData();
+  formData.append('mode', currentMode);
+  if(selectedFile){
+    formData.append('file', selectedFile);
+  } else {
+    formData.append('text', text);
+  }
+
+  try {
+    const response = await fetch('/api/analyze', { method: 'POST', body: formData });
+    if(!response.ok || !response.body){
+      const err = await response.json().catch(() => ({detail: 'Request failed'}));
+      output.textContent = 'Error: ' + (err.detail || response.statusText);
+      statusEl.textContent = '';
+      runBtn.disabled = false;
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullText = '';
+    output.textContent = '';
+
+    while(true){
+      const { value, done } = await reader.read();
+      if(done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop();
+
+      for(const line of lines){
+        if(!line.startsWith('data: ')) continue;
+        const jsonStr = line.slice(6);
+        try{
+          const evt = JSON.parse(jsonStr);
+          if(evt.delta){
+            fullText += evt.delta;
+            output.innerHTML = renderMarkdown(fullText);
+          } else if(evt.error){
+            output.innerHTML = renderMarkdown(fullText) + '<p style="color:red;">[Error: ' + evt.error + ']</p>';
+          } else if(evt.done){
+            statusEl.textContent = 'done';
+          }
+        }catch(e){ /* ignore partial JSON */ }
+      }
+    }
+  } catch (e) {
+    output.textContent = 'Network error: ' + e.message;
+  } finally {
+    runBtn.disabled = false;
+    if(statusEl.textContent === 'thinking…') statusEl.textContent = 'done';
+  }
+});
+</script>
+</body>
+</html>
