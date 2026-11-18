@@ -1,15 +1,14 @@
 """
 DocuMind AI — Streamlit Reading Desk
 ------------------------------------
-Interactive document reading, analysis, and Q&A desk powered by
-FastAPI / RAG backend components and multi-provider LLMs.
+Styled to replicate the vintage editorial aesthetic of the original HTML reading desk.
 """
 
 import os
 import sys
 import asyncio
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 # Ensure backend directory is in sys.path
 backend_dir = Path(__file__).resolve().parent / "backend"
@@ -19,7 +18,7 @@ if str(backend_dir) not in sys.path:
 import streamlit as st
 from app.core.config import settings
 
-# Load secrets from Streamlit Cloud secrets.toml into environment and settings
+# Ingest Streamlit Cloud secrets into environment and settings
 try:
     if hasattr(st, "secrets"):
         for key in ["OPENAI_API_KEY", "OPENAI_API", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"]:
@@ -46,415 +45,592 @@ from app.core.security import sanitize_text
 
 # Page Configuration
 st.set_page_config(
-    page_title="DocuMind AI — Intelligent Reading Desk",
+    page_title="DocuMind — read less, know more",
     page_icon="📖",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
-# Custom Styling
+# ----------------- Exact Vintage Paper Theme Styling ----------------- #
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap');
-    
-    .main-header {
-        font-family: 'Newsreader', Georgia, serif;
-        font-size: 2.4rem;
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap');
+
+    :root {
+        --paper: #f2ede3;
+        --paper-line: #e3dbca;
+        --ink: #2b2620;
+        --ink-soft: #6b6255;
+        --margin: #fffaf0;
+        --highlight: #c96f34;
+        --highlight-soft: #f0d9c4;
+        --rule: #c9bfa8;
+        --mono: "IBM Plex Mono", "Courier New", monospace;
+        --serif: "Iowan Old Style", "Palatino Linotype", "Newsreader", Georgia, serif;
+    }
+
+    /* Force Light Theme & Paper Background across full app */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background: var(--paper) !important;
+        background-color: var(--paper) !important;
+        background-image: repeating-linear-gradient(180deg, transparent 0 27px, var(--paper-line) 27px 28px) !important;
+        color: var(--ink) !important;
+        font-family: var(--serif) !important;
+    }
+
+    [data-testid="stToolbar"], [data-testid="stDecoration"] {
+        background: transparent !important;
+    }
+
+    /* Hide default top padding */
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 3rem !important;
+        max-width: 1200px !important;
+    }
+
+    /* Sidebar Styling */
+    [data-testid="stSidebar"] {
+        background-color: #eae4d8 !important;
+        border-right: 1px solid var(--rule) !important;
+    }
+    [data-testid="stSidebar"] * {
+        font-family: var(--mono) !important;
+        color: var(--ink) !important;
+    }
+
+    /* Header matching original HTML */
+    .brand-wrap {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        border-bottom: 3px double var(--ink);
+        padding-bottom: 14px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .brand-title-row {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+    }
+    .brand-title-row h1 {
+        font-family: var(--serif);
+        font-size: 32px;
+        margin: 0;
         font-weight: 600;
-        margin-bottom: 0.2rem;
-        color: #2b2620;
+        letter-spacing: 0.2px;
+        color: var(--ink);
     }
-    .sub-header {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.85rem;
-        color: #6b6255;
-        letter-spacing: 0.5px;
-        margin-bottom: 1.5rem;
-    }
-    .metric-badge {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.8rem;
-        background-color: #f6f1e8;
-        padding: 4px 10px;
-        border-radius: 4px;
-        border: 1px solid #e3dbca;
-        color: #6b6255;
-        display: inline-block;
-        margin-right: 6px;
-    }
-    .rag-badge {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.75rem;
-        background-color: #fdf5ec;
-        color: #c96f34;
-        border: 1px solid #f0d9c4;
+    .brand-mark {
+        font-family: var(--mono);
+        font-size: 13px;
+        letter-spacing: 2px;
+        color: var(--highlight);
+        border: 1px solid var(--highlight);
         padding: 2px 8px;
-        border-radius: 3px;
+        text-transform: uppercase;
         font-weight: 500;
     }
+    .brand-subtitle {
+        margin: 0;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--ink-soft);
+        letter-spacing: 0.5px;
+    }
+
+    /* Pane labels */
+    .pane-label {
+        font-family: var(--mono);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: var(--ink-soft);
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* Textarea */
     .stTextArea textarea {
-        font-family: 'Newsreader', Georgia, serif !important;
-        font-size: 1.05rem !important;
-        line-height: 1.6 !important;
+        background: var(--margin) !important;
+        border: 1px solid var(--rule) !important;
+        border-radius: 2px !important;
+        padding: 16px 18px !important;
+        font-family: var(--serif) !important;
+        font-size: 15.5px !important;
+        line-height: 1.65 !important;
+        color: var(--ink) !important;
+        min-height: 280px !important;
+    }
+    .stTextArea textarea:focus {
+        border-color: var(--highlight) !important;
+        box-shadow: 0 0 0 3px var(--highlight-soft) !important;
+    }
+    .stTextArea textarea::placeholder {
+        color: #9c9282 !important;
+    }
+
+    /* File uploader container */
+    [data-testid="stFileUploader"] {
+        background: transparent !important;
+        padding: 0 !important;
+        margin-top: 4px !important;
+    }
+    [data-testid="stFileUploaderDropzone"] {
+        background: var(--margin) !important;
+        border: 1px dashed var(--rule) !important;
+        border-radius: 2px !important;
+        padding: 10px 14px !important;
+        color: var(--ink-soft) !important;
+    }
+    [data-testid="stFileUploaderDropzone"] * {
+        font-family: var(--mono) !important;
+        font-size: 12px !important;
+        color: var(--ink-soft) !important;
+    }
+
+    /* Mode Buttons */
+    .mode-btn-container {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+    }
+    
+    /* Buttons general */
+    div.stButton > button {
+        font-family: var(--mono) !important;
+        font-size: 12px !important;
+        letter-spacing: 0.5px !important;
+        padding: 9px 14px !important;
+        border: 1px solid var(--ink) !important;
+        background: transparent !important;
+        color: var(--ink) !important;
+        border-radius: 2px !important;
+        transition: all .15s ease !important;
+    }
+    div.stButton > button:hover {
+        background: var(--ink) !important;
+        color: var(--paper) !important;
+    }
+
+    /* Primary Run Button */
+    div.stButton > button[kind="primary"] {
+        font-family: var(--mono) !important;
+        font-size: 13px !important;
+        letter-spacing: 1px !important;
+        padding: 12px 26px !important;
+        background: var(--ink) !important;
+        color: var(--paper) !important;
+        border: none !important;
+        border-radius: 2px !important;
+        text-transform: uppercase !important;
+    }
+    div.stButton > button[kind="primary"]:hover {
+        background: #443c33 !important;
+        color: #fff !important;
+    }
+
+    /* Output Margin & Box */
+    .margin-pane {
+        position: relative;
+        padding-left: 18px;
+    }
+    .margin-pane::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 4px;
+        bottom: 4px;
+        width: 2px;
+        background: repeating-linear-gradient(180deg, var(--highlight) 0 6px, transparent 6px 12px);
+    }
+    .output-box {
+        background: var(--margin);
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        min-height: 380px;
+        padding: 20px 22px;
+        font-size: 15.5px;
+        line-height: 1.7;
+        color: var(--ink);
+        font-family: var(--serif);
+    }
+    .output-box p {
+        margin-top: 0;
+        margin-bottom: 1rem;
+    }
+    .output-box h1, .output-box h2, .output-box h3, .output-box h4 {
+        font-family: var(--mono);
+        color: var(--highlight);
+        margin-top: 1.2rem;
+        margin-bottom: 0.5rem;
+        letter-spacing: 0.5px;
+    }
+    .output-box h3 {
+        font-size: 15px;
+        text-transform: uppercase;
+        border-bottom: 1px dashed var(--rule);
+        padding-bottom: 4px;
+    }
+    .output-box ul, .output-box ol {
+        padding-left: 22px;
+        margin-bottom: 1rem;
+    }
+    .output-box li {
+        margin-bottom: 6px;
+    }
+    .output-box strong {
+        color: var(--ink);
+        font-weight: 700;
+    }
+    .output-box code {
+        font-family: var(--mono);
+        background: var(--paper);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 13px;
+    }
+    .output-empty {
+        color: #a89e8c;
+        font-style: italic;
+        font-family: var(--serif);
+    }
+
+    /* Badges */
+    .metric-badge {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-soft);
+        margin-right: 8px;
+    }
+    .rag-badge {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--highlight);
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    /* Footer */
+    .documind-footer {
+        margin-top: 40px;
+        padding-top: 16px;
+        border-top: 1px solid var(--rule);
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-soft);
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-
-def initialize_session():
-    """Initializes session state variables."""
-    if "analysis_result" not in st.session_state:
-        st.session_state.analysis_result = ""
-    if "extracted_doc" not in st.session_state:
-        st.session_state.extracted_doc = None
-    if "retrieved_chunks" not in st.session_state:
-        st.session_state.retrieved_chunks = []
-    if "active_mode_label" not in st.session_state:
-        st.session_state.active_mode_label = "Summarize"
-
-
-initialize_session()
+# Initialize Session States
+if "current_mode" not in st.session_state:
+    st.session_state.current_mode = "summarize"
+if "analysis_result" not in st.session_state:
+    st.session_state.analysis_result = ""
+if "extracted_doc" not in st.session_state:
+    st.session_state.extracted_doc = None
+if "doc_text_input" not in st.session_state:
+    st.session_state.doc_text_input = ""
+if "retrieved_chunks" not in st.session_state:
+    st.session_state.retrieved_chunks = []
 
 
-# ---------------- Sidebar: Settings & Model Configuration ---------------- #
+# ---------------- Sidebar: Settings ---------------- #
 with st.sidebar:
-    st.markdown("### ⚙️ Engine Settings")
+    st.markdown("### Settings & Providers")
 
-    # Provider Selection
-    provider_options = ["Anthropic Claude", "OpenAI", "Google Gemini", "Offline Mock Mode"]
-    default_provider_idx = 0
+    provider_options = ["OpenAI", "Anthropic Claude", "Google Gemini", "Offline Mock Mode"]
+    default_idx = 0
     if settings.ENABLE_MOCK_FALLBACK:
-        default_provider_idx = 3
-    elif settings.OPENAI_API_KEY and not settings.ANTHROPIC_API_KEY:
-        default_provider_idx = 1
-    elif settings.GEMINI_API_KEY and not settings.ANTHROPIC_API_KEY:
-        default_provider_idx = 2
+        default_idx = 3
+    elif settings.ANTHROPIC_API_KEY and not settings.OPENAI_API_KEY:
+        default_idx = 1
+    elif settings.GEMINI_API_KEY and not settings.OPENAI_API_KEY:
+        default_idx = 2
 
-    chosen_provider = st.selectbox(
-        "LLM Provider",
-        options=provider_options,
-        index=default_provider_idx,
-        help="Select which LLM provider to stream responses from.",
-    )
+    chosen_provider = st.selectbox("LLM Provider", options=provider_options, index=default_idx)
 
-    # API Keys & Models based on provider
-    if chosen_provider == "Anthropic Claude":
-        api_key = st.text_input(
-            "Anthropic API Key",
-            value=settings.ANTHROPIC_API_KEY or "",
-            type="password",
-            help="Defaults to ANTHROPIC_API_KEY from .env",
-        )
-        if api_key:
-            settings.ANTHROPIC_API_KEY = api_key
-
-        model_name = st.selectbox(
-            "Claude Model",
-            options=["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"],
-            index=0,
-        )
-        settings.ANTHROPIC_MODEL = model_name
+    if chosen_provider == "OpenAI":
+        key = st.text_input("OpenAI API Key", value=settings.OPENAI_API_KEY or "", type="password")
+        if key:
+            settings.OPENAI_API_KEY = key
+        model = st.selectbox("Model", options=["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"], index=0)
+        settings.OPENAI_MODEL = model
         settings.ENABLE_MOCK_FALLBACK = False
 
-    elif chosen_provider == "OpenAI":
-        api_key = st.text_input(
-            "OpenAI API Key",
-            value=settings.OPENAI_API_KEY or "",
-            type="password",
-            help="Defaults to OPENAI_API_KEY from .env",
-        )
-        if api_key:
-            settings.OPENAI_API_KEY = api_key
-
-        model_name = st.selectbox(
-            "OpenAI Model",
-            options=["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
-            index=0,
-        )
-        settings.OPENAI_MODEL = model_name
+    elif chosen_provider == "Anthropic Claude":
+        key = st.text_input("Claude API Key", value=settings.ANTHROPIC_API_KEY or "", type="password")
+        if key:
+            settings.ANTHROPIC_API_KEY = key
+        model = st.selectbox("Model", options=["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"], index=0)
+        settings.ANTHROPIC_MODEL = model
         settings.ENABLE_MOCK_FALLBACK = False
 
     elif chosen_provider == "Google Gemini":
-        api_key = st.text_input(
-            "Gemini API Key",
-            value=settings.GEMINI_API_KEY or "",
-            type="password",
-            help="Defaults to GEMINI_API_KEY from .env",
-        )
-        if api_key:
-            settings.GEMINI_API_KEY = api_key
-
-        model_name = st.selectbox(
-            "Gemini Model",
-            options=["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
-            index=0,
-        )
-        settings.GEMINI_MODEL = model_name
+        key = st.text_input("Gemini API Key", value=settings.GEMINI_API_KEY or "", type="password")
+        if key:
+            settings.GEMINI_API_KEY = key
+        model = st.selectbox("Model", options=["gemini-2.0-flash", "gemini-1.5-pro"], index=0)
+        settings.GEMINI_MODEL = model
         settings.ENABLE_MOCK_FALLBACK = False
 
     else:
-        st.info("ℹ️ Running in Mock Mode. No API calls or keys required.")
+        st.info("Mock mode enabled — no API key required.")
         settings.ENABLE_MOCK_FALLBACK = True
 
-    st.divider()
-
-    st.markdown("### 🧠 RAG & Guardrails")
-    chunk_size = st.slider("Chunk Size (characters)", min_value=400, max_value=2500, value=settings.CHUNK_SIZE, step=100)
-    chunk_overlap = st.slider("Chunk Overlap (characters)", min_value=50, max_value=500, value=settings.CHUNK_OVERLAP, step=25)
-    top_k = st.slider("Top-K Semantic Chunks", min_value=2, max_value=12, value=settings.TOP_K_CHUNKS)
-
-    settings.CHUNK_SIZE = chunk_size
-    settings.CHUNK_OVERLAP = chunk_overlap
-    settings.TOP_K_CHUNKS = top_k
-
-    st.divider()
-    st.markdown(
-        """
-        **DocuMind AI** v2.0  
-        *Retrieval-Augmented Intelligent Reader*
-        """
-    )
+    st.markdown("---")
+    st.markdown("### RAG Settings")
+    settings.CHUNK_SIZE = st.slider("Chunk Size", 400, 2500, settings.CHUNK_SIZE, 100)
+    settings.CHUNK_OVERLAP = st.slider("Chunk Overlap", 50, 500, settings.CHUNK_OVERLAP, 25)
+    settings.TOP_K_CHUNKS = st.slider("Top-K Chunks", 2, 10, settings.TOP_K_CHUNKS)
 
 
 # ---------------- Header ---------------- #
-st.markdown('<div class="main-header">DocuMind AI</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="sub-header">READ LESS, KNOW MORE — LIVE SUMMARIZATION, ANALYSIS & SYNTHESIS DESK</div>',
+    """
+    <div class="brand-wrap">
+      <div class="brand-title-row">
+        <h1>DocuMind</h1>
+        <span class="brand-mark">AI reading desk</span>
+      </div>
+      <p class="brand-subtitle">paste text or upload a document — get it summarized, distilled, or simplified, live</p>
+    </div>
+    """,
     unsafe_allow_html=True,
 )
 
 
-# ---------------- Main Desk: Input & Output Columns ---------------- #
-col_input, col_output = st.columns([1.05, 1.15], gap="large")
+# ---------------- Main Desk Layout ---------------- #
+col_left, col_right = st.columns([1.1, 1.0], gap="large")
 
-with col_input:
-    st.markdown("#### 01 — The Document")
+with col_left:
+    # Calculate live charcount
+    current_text = st.session_state.doc_text_input
+    char_len = len(current_text) if current_text else 0
 
-    input_method = st.radio(
-        "Choose Input Method:",
-        options=["Upload File (.pdf, .txt)", "Paste Text"],
-        horizontal=True,
-        label_visibility="collapsed",
+    st.markdown(
+        f"""
+        <div class="pane-label">
+            <span>01 — the document</span>
+            <span id="charcount">{char_len} chars</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    extracted_doc: Optional[ExtractedDocument] = None
+    doc_text = st.text_area(
+        label="01 — the document",
+        placeholder="Paste an article, report, contract, or essay here…",
+        height=320,
+        label_visibility="collapsed",
+        key="doc_text_area",
+    )
+    if doc_text != st.session_state.doc_text_input:
+        st.session_state.doc_text_input = doc_text
 
-    if input_method == "Upload File (.pdf, .txt)":
-        uploaded_file = st.file_uploader(
-            "Drop a document here:",
-            type=["pdf", "txt"],
-            help="Upload a PDF or TXT file up to 15MB.",
-        )
-        if uploaded_file is not None:
-            bytes_data = uploaded_file.read()
-            with st.spinner(f"Extracting and normalizing {uploaded_file.name}..."):
-                try:
-                    extracted_doc = DocumentParser.parse_bytes(bytes_data, filename=uploaded_file.name)
-                    st.session_state.extracted_doc = extracted_doc
-                except Exception as exc:
-                    st.error(f"Error parsing document: {exc}")
+    # File uploader
+    uploaded_file = st.file_uploader(
+        "or upload a file:",
+        type=["txt", "pdf"],
+        label_visibility="visible",
+    )
+
+    if uploaded_file is not None:
+        file_bytes = uploaded_file.read()
+        try:
+            parsed_doc = DocumentParser.parse_bytes(file_bytes, filename=uploaded_file.name)
+            st.session_state.extracted_doc = parsed_doc
+            st.markdown(
+                f"""
+                <div style="margin-top: 6px;">
+                    <span class="metric-badge">📄 {uploaded_file.name}</span>
+                    <span class="metric-badge">({parsed_doc.page_count} pages, {parsed_doc.char_count:,} chars)</span>
+                    <span class="rag-badge">{'⚡ Vector RAG' if parsed_doc.char_count > settings.DIRECT_PROCESSING_CHAR_LIMIT else 'Direct'}</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        except Exception as e:
+            st.error(f"Error reading file: {e}")
+    elif doc_text.strip():
+        cleaned = sanitize_text(doc_text)
+        st.session_state.extracted_doc = ExtractedDocument(full_text=cleaned, pages=[(1, cleaned)])
     else:
-        text_input = st.text_area(
-            "Paste document text:",
-            placeholder="Paste an article, legal agreement, research paper, or essay here...",
-            height=320,
-        )
-        if text_input.strip():
-            clean_text = sanitize_text(text_input)
-            extracted_doc = ExtractedDocument(full_text=clean_text, pages=[(1, clean_text)])
-            st.session_state.extracted_doc = extracted_doc
-        else:
-            extracted_doc = None
-            st.session_state.extracted_doc = None
+        st.session_state.extracted_doc = None
 
-    # Document Stats Badge
-    if extracted_doc and extracted_doc.full_text.strip():
-        char_count = extracted_doc.char_count
-        word_count = extracted_doc.word_count
-        page_count = extracted_doc.page_count
-        read_time_min = max(1, round(word_count / 200))
+    # Mode Buttons matching .mode-btn
+    st.markdown('<div style="font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--ink-soft); margin-top: 14px; margin-bottom: 6px;">Select Mode</div>', unsafe_allow_html=True)
+    m_col1, m_col2, m_col3 = st.columns(3)
 
-        is_rag_required = char_count > settings.DIRECT_PROCESSING_CHAR_LIMIT
-        rag_label = "⚡ Vector RAG Engine Active" if is_rag_required else "Direct Stream (< 12k chars)"
+    with m_col1:
+        sum_active = "background: var(--highlight) !important; color: #fff !important; border-color: var(--highlight) !important;" if st.session_state.current_mode == "summarize" else ""
+        st.markdown(f"<style>div.row-widget.stButton:has(button#btn-sum) button {{ {sum_active} }}</style>", unsafe_allow_html=True)
+        if st.button("Summarize", key="btn-sum", use_container_width=True):
+            st.session_state.current_mode = "summarize"
+            st.rerun()
 
-        st.markdown(
-            f"""
-            <div>
-                <span class="metric-badge">📄 {page_count} page(s)</span>
-                <span class="metric-badge">📝 {word_count:,} words</span>
-                <span class="metric-badge">🔤 {char_count:,} chars</span>
-                <span class="metric-badge">⏱️ ~{read_time_min} min read</span>
-                <span class="rag-badge">{rag_label}</span>
+    with m_col2:
+        kp_active = "background: var(--highlight) !important; color: #fff !important; border-color: var(--highlight) !important;" if st.session_state.current_mode == "key_points" else ""
+        st.markdown(f"<style>div.row-widget.stButton:has(button#btn-kp) button {{ {kp_active} }}</style>", unsafe_allow_html=True)
+        if st.button("Key Points", key="btn-kp", use_container_width=True):
+            st.session_state.current_mode = "key_points"
+            st.rerun()
+
+    with m_col3:
+        simp_active = "background: var(--highlight) !important; color: #fff !important; border-color: var(--highlight) !important;" if st.session_state.current_mode == "simplify" else ""
+        st.markdown(f"<style>div.row-widget.stButton:has(button#btn-simp) button {{ {simp_active} }}</style>", unsafe_allow_html=True)
+        if st.button("Simplify", key="btn-simp", use_container_width=True):
+            st.session_state.current_mode = "simplify"
+            st.rerun()
+
+    # Run Row
+    st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
+    run_clicked = st.button("Analyze →", type="primary", use_container_width=False)
+
+
+with col_right:
+    mode_display = st.session_state.current_mode.replace("_", " ")
+    st.markdown(
+        f"""
+        <div class="margin-pane">
+            <div class="pane-label">
+                <span>02 — the reading</span>
+                <span style="color: var(--highlight);">{mode_display}</span>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("#### Analysis Objective")
-    mode_selection = st.radio(
-        "Mode:",
-        options=["Summarize", "Key Points", "Simplify", "Ask Custom Question"],
-        horizontal=True,
-        label_visibility="collapsed",
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    custom_question = ""
-    if mode_selection == "Ask Custom Question":
-        custom_question = st.text_input(
-            "Enter your question regarding the document:",
-            placeholder="e.g., What are the key liabilities and termination terms in this agreement?",
-        )
-
-    run_clicked = st.button("Analyze Document →", type="primary", use_container_width=True)
-
-
-with col_output:
-    mode_title = mode_selection.upper() if mode_selection else "SUMMARY"
-    st.markdown(f"#### 02 — The Reading ({mode_title})")
-
-    output_container = st.empty()
+    output_slot = st.empty()
 
     if not st.session_state.analysis_result and not run_clicked:
-        output_container.markdown(
+        output_slot.markdown(
             """
-            <div style="background-color: #fffaf0; border: 1px dashed #c9bfa8; border-radius: 4px; padding: 40px 24px; text-align: center; color: #a89e8c; font-style: italic;">
-                Your analysis will appear here, streamed in live as it is generated...
+            <div class="margin-pane">
+                <div class="output-box">
+                    <span class="output-empty">Your analysis will appear here, streamed in as it's written…</span>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
     if run_clicked:
-        doc_to_analyze = st.session_state.extracted_doc
-
-        if not doc_to_analyze or not doc_to_analyze.full_text.strip():
-            st.warning("⚠️ Please provide a document by uploading a file or pasting text.")
-        elif mode_selection == "Ask Custom Question" and not custom_question.strip():
-            st.warning("⚠️ Please enter a question to ask about the document.")
+        doc = st.session_state.extracted_doc
+        if not doc or not doc.full_text.strip():
+            output_slot.markdown(
+                """
+                <div class="margin-pane">
+                    <div class="output-box" style="border-color: #d9534f; color: #a94442;">
+                        Paste some text or choose a file first.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         else:
-            st.session_state.active_mode_label = mode_selection
-            st.session_state.retrieved_chunks = []
-
-            # Instantiate services
+            # Prepare services
             llm_service = LLMService()
             chunker = TextChunker(chunk_size=settings.CHUNK_SIZE, chunk_overlap=settings.CHUNK_OVERLAP)
             vector_store = VectorStore(embedding_service=SemanticEmbeddingService())
             rag_engine = RAGEngine(llm_service=llm_service, chunker=chunker, vector_store=vector_store)
 
-            # Map mode
-            if mode_selection == "Summarize":
-                mode = AnalysisMode.SUMMARIZE
-            elif mode_selection == "Key Points":
-                mode = AnalysisMode.KEY_POINTS
-            elif mode_selection == "Simplify":
-                mode = AnalysisMode.SIMPLIFY
-            else:
-                mode = AnalysisMode.SUMMARIZE
+            mode = AnalysisMode(st.session_state.current_mode)
 
-            # Custom question handling
-            if mode_selection == "Ask Custom Question":
-                chunks = chunker.chunk_document(doc_to_analyze)
+            if rag_engine.is_large_document(doc.full_text):
+                chunks = chunker.chunk_document(doc)
                 vector_store.clear()
                 vector_store.add_chunks(chunks)
-                search_results = vector_store.similarity_search(query=custom_question, top_k=settings.TOP_K_CHUNKS)
-                retrieved_chunks = [r.chunk for r in search_results]
-                st.session_state.retrieved_chunks = retrieved_chunks
+                st.session_state.retrieved_chunks = rag_engine.retrieve_context(mode=mode, top_k_per_query=settings.TOP_K_CHUNKS)
 
-                context_sections = []
-                for idx, c in enumerate(retrieved_chunks, 1):
-                    p_info = f" (Page {c.page_number})" if c.page_number else ""
-                    context_sections.append(f"--- Section {idx}{p_info} ---\n{c.text}")
+            async def get_stream():
+                async for token in rag_engine.process_and_stream(doc=doc, mode=mode):
+                    yield token
 
-                augmented_prompt = (
-                    f"Document Context:\n\n"
-                    + "\n\n".join(context_sections)
-                    + f"\n\nQuestion: {custom_question}\n\n"
-                    f"Answer the question thoroughly and concisely strictly based on the extracted context above."
-                )
-
-                custom_sys_prompt = (
-                    "You are a precise document intelligence assistant. Answer user questions "
-                    "accurately using only the provided context. Cite section or page numbers when available."
-                )
-
-                async def get_stream():
-                    async for token in llm_service.stream_analysis(
-                        mode=mode,
-                        content=augmented_prompt,
-                        custom_system_prompt=custom_sys_prompt,
-                    ):
-                        yield token
-
-            else:
-                # If RAG is triggered, retrieve chunks for transparency tab
-                if rag_engine.is_large_document(doc_to_analyze.full_text):
-                    chunks = chunker.chunk_document(doc_to_analyze)
-                    vector_store.clear()
-                    vector_store.add_chunks(chunks)
-                    st.session_state.retrieved_chunks = rag_engine.retrieve_context(
-                        mode=mode, top_k_per_query=settings.TOP_K_CHUNKS
-                    )
-
-                async def get_stream():
-                    async for token in rag_engine.process_and_stream(doc=doc_to_analyze, mode=mode):
-                        yield token
-
-            def sync_stream_adapter(async_generator):
-                """Bridge async generator to synchronous generator for st.write_stream."""
+            def sync_stream(async_generator):
                 loop = asyncio.new_event_loop()
                 try:
                     while True:
                         try:
-                            item = loop.run_until_complete(async_generator.__anext__())
-                            yield item
+                            token = loop.run_until_complete(async_generator.__anext__())
+                            yield token
                         except StopAsyncIteration:
                             break
                 finally:
                     loop.close()
 
-            # Stream response in Streamlit
             try:
-                with output_container.container():
-                    stream_generator = sync_stream_adapter(get_stream())
-                    full_response = st.write_stream(stream_generator)
-                    st.session_state.analysis_result = full_response
-            except Exception as e:
-                st.error(f"Analysis failed: {e}")
+                with output_slot.container():
+                    st.markdown('<div class="margin-pane"><div class="output-box">', unsafe_allow_html=True)
+                    result = st.write_stream(sync_stream(get_stream()))
+                    st.markdown('</div></div>', unsafe_allow_html=True)
+                    st.session_state.analysis_result = result
+            except Exception as exc:
+                output_slot.markdown(
+                    f"""
+                    <div class="margin-pane">
+                        <div class="output-box" style="border-color: #d9534f; color: #a94442;">
+                            Error: {exc}
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
-    # Persistent output view (when not streaming new run)
     elif st.session_state.analysis_result:
-        with output_container.container():
-            st.markdown(st.session_state.analysis_result)
+        with output_slot.container():
+            st.markdown(
+                f"""
+                <div class="margin-pane">
+                    <div class="output-box">
+                        {st.session_state.analysis_result}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-    # Export & Download Actions
+    # Actions when result exists
     if st.session_state.analysis_result:
-        st.divider()
-        col_dl1, col_dl2 = st.columns([1, 1])
-        with col_dl1:
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
             st.download_button(
-                label="📥 Download as Markdown (.md)",
+                "Download Markdown (.md)",
                 data=st.session_state.analysis_result,
-                file_name=f"documind_{st.session_state.active_mode_label.lower().replace(' ', '_')}.md",
+                file_name=f"documind_{st.session_state.current_mode}.md",
                 mime="text/markdown",
-                use_container_width=True,
             )
-        with col_dl2:
+        with col_d2:
             st.download_button(
-                label="📄 Download as Text (.txt)",
+                "Download Text (.txt)",
                 data=st.session_state.analysis_result,
-                file_name=f"documind_{st.session_state.active_mode_label.lower().replace(' ', '_')}.txt",
+                file_name=f"documind_{st.session_state.current_mode}.txt",
                 mime="text/plain",
-                use_container_width=True,
             )
 
-    # RAG Transparency & Retrieved Chunks Inspector
-    if st.session_state.retrieved_chunks:
-        with st.expander(f"🔍 Inspect Vector RAG Chunks ({len(st.session_state.retrieved_chunks)} sections retrieved)"):
-            for i, chunk in enumerate(st.session_state.retrieved_chunks, 1):
-                p_text = f" | Page {chunk.page_number}" if chunk.page_number else ""
-                st.markdown(f"**Chunk #{chunk.chunk_id}** ({chunk.char_count} chars{p_text})")
-                st.caption(chunk.text)
-                st.divider()
+
+# ---------------- Footer ---------------- #
+st.markdown(
+    """
+    <footer class="documind-footer">
+      <span>DocuMind AI — built with Vibe Coding</span>
+      <span>reading desk ready</span>
+    </footer>
+    """,
+    unsafe_allow_html=True,
+)
