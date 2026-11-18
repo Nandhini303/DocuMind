@@ -1,7 +1,8 @@
 """
 DocuMind AI — Streamlit Reading Desk
 ------------------------------------
-Styled to replicate the vintage editorial aesthetic of the original HTML reading desk.
+Styled to replicate the vintage editorial aesthetic of the original HTML reading desk,
+with responsive layout, in-box output rendering, and multi-format export (PDF/MD/TXT).
 """
 
 import os
@@ -51,6 +52,40 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+
+def generate_pdf(content: str, mode_name: str) -> bytes:
+    """Generates a clean PDF document from analysis text."""
+    from fpdf import FPDF
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    # Title
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.cell(0, 10, "DocuMind Analysis", new_x="LMARGIN", new_y="NEXT")
+
+    # Mode header
+    pdf.set_font("Helvetica", "I", 11)
+    pdf.cell(0, 8, f"Analysis Mode: {mode_name.upper().replace('_', ' ')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.line(10, pdf.get_y() + 2, 200, pdf.get_y() + 2)
+    pdf.ln(8)
+
+    # Body
+    pdf.set_font("Helvetica", size=11)
+    safe_text = (
+        content
+        .replace("—", "-")
+        .replace("“", '"')
+        .replace("”", '"')
+        .replace("‘", "'")
+        .replace("’", "'")
+        .replace("•", "*")
+    )
+    safe_text = safe_text.encode("latin-1", "replace").decode("latin-1")
+    pdf.multi_cell(0, 6, safe_text)
+    return bytes(pdf.output())
+
+
 # ----------------- Exact Vintage Paper Theme Styling ----------------- #
 st.markdown(
     """
@@ -70,7 +105,7 @@ st.markdown(
         --serif: "Iowan Old Style", "Palatino Linotype", "Newsreader", Georgia, serif;
     }
 
-    /* Force Light Theme & Paper Background across full app */
+    /* Base page container */
     .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background: var(--paper) !important;
         background-color: var(--paper) !important;
@@ -83,11 +118,23 @@ st.markdown(
         background: transparent !important;
     }
 
-    /* Hide default top padding */
     .block-container {
-        padding-top: 2rem !important;
-        padding-bottom: 3rem !important;
-        max-width: 1200px !important;
+        padding-top: 1.8rem !important;
+        padding-bottom: 2.5rem !important;
+        max-width: 1180px !important;
+    }
+
+    /* Prevent icon font collisions */
+    [data-testid="stIcon"],
+    [data-testid="stIcon"] *,
+    .material-symbols-rounded,
+    .material-symbols-outlined,
+    [data-testid="stSidebarCollapseButton"] span,
+    [data-testid="stSidebarCollapseButton"] i,
+    button[aria-label*="password"] span,
+    button[aria-label*="password"] i {
+        font-family: "Material Symbols Rounded", "Material Symbols Outlined", sans-serif !important;
+        font-style: normal !important;
     }
 
     /* Sidebar Styling */
@@ -95,18 +142,6 @@ st.markdown(
         background-color: #ede7da !important;
         border-right: 1px solid var(--rule) !important;
     }
-    
-    /* Ensure icon fonts are never overridden */
-    [data-testid="stSidebarCollapseButton"] span,
-    [data-testid="stSidebarCollapseButton"] i,
-    button[aria-label*="password"] span,
-    button[aria-label*="password"] i,
-    .material-symbols-rounded,
-    .material-symbols-outlined,
-    [data-testid="stIcon"] {
-        font-family: "Material Symbols Rounded", "Material Symbols Outlined", sans-serif !important;
-    }
-
     [data-testid="stSidebar"] h2,
     [data-testid="stSidebar"] h3 {
         font-family: var(--serif) !important;
@@ -116,7 +151,6 @@ st.markdown(
         margin-top: 0.5rem !important;
         margin-bottom: 0.5rem !important;
     }
-
     [data-testid="stSidebar"] .sidebar-section-tag {
         font-family: var(--mono);
         font-size: 10px;
@@ -127,7 +161,6 @@ st.markdown(
         margin-top: 14px;
         margin-bottom: 4px;
     }
-
     [data-testid="stSidebar"] label p {
         font-family: var(--mono) !important;
         font-size: 11px !important;
@@ -135,7 +168,6 @@ st.markdown(
         letter-spacing: 0.8px !important;
         color: var(--ink-soft) !important;
     }
-
     [data-testid="stSidebar"] input,
     [data-testid="stSidebar"] div[data-baseweb="select"] > div {
         background-color: var(--margin) !important;
@@ -145,13 +177,11 @@ st.markdown(
         font-family: var(--mono) !important;
         font-size: 12.5px !important;
     }
-
     [data-testid="stSidebar"] input:focus,
     [data-testid="stSidebar"] div[data-baseweb="select"]:focus-within {
         border-color: var(--highlight) !important;
         box-shadow: 0 0 0 2px var(--highlight-soft) !important;
     }
-
     .sidebar-info-card {
         background: var(--margin);
         border: 1px solid var(--rule);
@@ -161,7 +191,7 @@ st.markdown(
         font-family: var(--mono);
         font-size: 11px;
         color: var(--ink-soft);
-        line-height: 1.5;
+        line-height: 1.6;
     }
 
     /* Header matching original HTML */
@@ -170,10 +200,10 @@ st.markdown(
         align-items: baseline;
         justify-content: space-between;
         border-bottom: 3px double var(--ink);
-        padding-bottom: 14px;
-        margin-bottom: 24px;
+        padding-bottom: 12px;
+        margin-bottom: 20px;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 8px;
     }
     .brand-title-row {
         display: flex;
@@ -182,7 +212,7 @@ st.markdown(
     }
     .brand-title-row h1 {
         font-family: var(--serif);
-        font-size: 32px;
+        font-size: 30px;
         margin: 0;
         font-weight: 600;
         letter-spacing: 0.2px;
@@ -224,12 +254,12 @@ st.markdown(
         background: var(--margin) !important;
         border: 1px solid var(--rule) !important;
         border-radius: 2px !important;
-        padding: 16px 18px !important;
+        padding: 14px 16px !important;
         font-family: var(--serif) !important;
-        font-size: 15.5px !important;
-        line-height: 1.65 !important;
+        font-size: 15px !important;
+        line-height: 1.6 !important;
         color: var(--ink) !important;
-        min-height: 280px !important;
+        resize: vertical !important;
     }
     .stTextArea textarea:focus {
         border-color: var(--highlight) !important;
@@ -239,49 +269,79 @@ st.markdown(
         color: #9c9282 !important;
     }
 
-    /* File uploader container */
+    /* Compact File Uploader */
     [data-testid="stFileUploader"] {
-        background: transparent !important;
-        padding: 0 !important;
         margin-top: 4px !important;
+        margin-bottom: 8px !important;
+    }
+    [data-testid="stFileUploader"] label {
+        display: none !important;
     }
     [data-testid="stFileUploaderDropzone"] {
         background: var(--margin) !important;
         border: 1px dashed var(--rule) !important;
         border-radius: 2px !important;
-        padding: 10px 14px !important;
-        color: var(--ink-soft) !important;
+        padding: 6px 12px !important;
+        min-height: 42px !important;
     }
-    [data-testid="stFileUploaderDropzone"] * {
+    [data-testid="stFileUploaderDropzone"] button {
         font-family: var(--mono) !important;
-        font-size: 12px !important;
+        font-size: 11px !important;
+        border: 1px solid var(--rule) !important;
+        background: var(--paper) !important;
+        color: var(--ink) !important;
+        padding: 4px 10px !important;
+        border-radius: 2px !important;
+    }
+    [data-testid="stFileUploaderDropzoneInstructions"] {
+        font-family: var(--mono) !important;
+        font-size: 11px !important;
         color: var(--ink-soft) !important;
     }
 
-    /* Mode Buttons */
-    .mode-btn-container {
-        display: flex;
-        gap: 8px;
-        margin-top: 14px;
-        margin-bottom: 14px;
-        flex-wrap: wrap;
+    /* Mode Radio Group styled exactly as .mode-btn */
+    div[data-testid="stRadio"] > div {
+        display: flex !important;
+        gap: 8px !important;
+        flex-wrap: wrap !important;
     }
-    
-    /* Buttons general */
-    div.stButton > button {
+    div[data-testid="stRadio"] label {
         font-family: var(--mono) !important;
         font-size: 12px !important;
         letter-spacing: 0.5px !important;
-        padding: 9px 14px !important;
+        padding: 8px 16px !important;
         border: 1px solid var(--ink) !important;
         background: transparent !important;
         color: var(--ink) !important;
         border-radius: 2px !important;
+        cursor: pointer !important;
         transition: all .15s ease !important;
+        margin: 0 !important;
     }
-    div.stButton > button:hover {
+    div[data-testid="stRadio"] label:hover {
         background: var(--ink) !important;
         color: var(--paper) !important;
+    }
+    div[data-testid="stRadio"] label:hover p {
+        color: var(--paper) !important;
+    }
+    /* Active highlighted mode */
+    div[data-testid="stRadio"] label:has(input:checked) {
+        background: var(--highlight) !important;
+        border-color: var(--highlight) !important;
+        color: #ffffff !important;
+    }
+    div[data-testid="stRadio"] label:has(input:checked) p {
+        color: #ffffff !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stRadio"] input {
+        display: none !important;
+    }
+    div[data-testid="stRadio"] [data-testid="stMarkdownContainer"] p {
+        margin: 0 !important;
+        font-size: 12px !important;
+        font-family: var(--mono) !important;
     }
 
     /* Primary Run Button */
@@ -289,82 +349,106 @@ st.markdown(
         font-family: var(--mono) !important;
         font-size: 13px !important;
         letter-spacing: 1px !important;
-        padding: 12px 26px !important;
+        padding: 10px 24px !important;
         background: var(--ink) !important;
         color: var(--paper) !important;
         border: none !important;
         border-radius: 2px !important;
         text-transform: uppercase !important;
+        cursor: pointer !important;
     }
     div.stButton > button[kind="primary"]:hover {
         background: #443c33 !important;
         color: #fff !important;
     }
 
-    /* Output Margin & Box */
-    .margin-pane {
-        position: relative;
-        padding-left: 18px;
+    /* Output Reading Box Container (guarantees text stays strictly inside) */
+    div[data-testid="column"]:last-child div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: var(--margin) !important;
+        border: 1px solid var(--rule) !important;
+        border-radius: 2px !important;
+        min-height: 380px !important;
+        padding: 18px 20px !important;
+        position: relative !important;
+        margin-left: 18px !important;
     }
-    .margin-pane::before {
+    div[data-testid="column"]:last-child div[data-testid="stVerticalBlockBorderWrapper"]::before {
         content: "";
         position: absolute;
-        left: 0;
-        top: 4px;
-        bottom: 4px;
+        left: -18px;
+        top: 2px;
+        bottom: 2px;
         width: 2px;
         background: repeating-linear-gradient(180deg, var(--highlight) 0 6px, transparent 6px 12px);
     }
-    .output-box {
-        background: var(--margin);
-        border: 1px solid var(--rule);
-        border-radius: 2px;
-        min-height: 380px;
-        padding: 20px 22px;
-        font-size: 15.5px;
-        line-height: 1.7;
-        color: var(--ink);
+    div[data-testid="column"]:last-child div[data-testid="stVerticalBlockBorderWrapper"] p {
         font-family: var(--serif);
+        font-size: 15px;
+        line-height: 1.68;
+        color: var(--ink);
+        margin-bottom: 0.8rem;
     }
-    .output-box p {
-        margin-top: 0;
-        margin-bottom: 1rem;
-    }
-    .output-box h1, .output-box h2, .output-box h3, .output-box h4 {
+    div[data-testid="column"]:last-child div[data-testid="stVerticalBlockBorderWrapper"] h1,
+    div[data-testid="column"]:last-child div[data-testid="stVerticalBlockBorderWrapper"] h2,
+    div[data-testid="column"]:last-child div[data-testid="stVerticalBlockBorderWrapper"] h3 {
         font-family: var(--mono);
         color: var(--highlight);
-        margin-top: 1.2rem;
-        margin-bottom: 0.5rem;
+        margin-top: 1rem;
+        margin-bottom: 0.4rem;
         letter-spacing: 0.5px;
     }
-    .output-box h3 {
-        font-size: 15px;
+    div[data-testid="column"]:last-child div[data-testid="stVerticalBlockBorderWrapper"] h3 {
+        font-size: 14px;
         text-transform: uppercase;
         border-bottom: 1px dashed var(--rule);
         padding-bottom: 4px;
     }
-    .output-box ul, .output-box ol {
-        padding-left: 22px;
-        margin-bottom: 1rem;
+    div[data-testid="column"]:last-child div[data-testid="stVerticalBlockBorderWrapper"] ul,
+    div[data-testid="column"]:last-child div[data-testid="stVerticalBlockBorderWrapper"] ol {
+        padding-left: 20px;
+        margin-bottom: 0.8rem;
+        font-family: var(--serif);
+        font-size: 15px;
+        color: var(--ink);
     }
-    .output-box li {
-        margin-bottom: 6px;
+    div[data-testid="column"]:last-child div[data-testid="stVerticalBlockBorderWrapper"] li {
+        margin-bottom: 5px;
+        line-height: 1.6;
     }
-    .output-box strong {
+    div[data-testid="column"]:last-child div[data-testid="stVerticalBlockBorderWrapper"] strong {
         color: var(--ink);
         font-weight: 700;
-    }
-    .output-box code {
-        font-family: var(--mono);
-        background: var(--paper);
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 13px;
     }
     .output-empty {
         color: #a89e8c;
         font-style: italic;
         font-family: var(--serif);
+        font-size: 15px;
+    }
+
+    /* Desktop Vertical Divider between panes */
+    @media (min-width: 861px) {
+        div[data-testid="column"]:first-child {
+            border-right: 1px solid var(--rule);
+            padding-right: 24px !important;
+        }
+        div[data-testid="column"]:last-child {
+            padding-left: 4px !important;
+        }
+    }
+
+    /* Mobile Responsive Adjustments */
+    @media (max-width: 860px) {
+        .block-container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+        div[data-testid="column"]:last-child div[data-testid="stVerticalBlockBorderWrapper"] {
+            margin-left: 0 !important;
+        }
+        div[data-testid="column"]:last-child div[data-testid="stVerticalBlockBorderWrapper"]::before {
+            display: none !important;
+        }
     }
 
     /* Badges */
@@ -382,10 +466,27 @@ st.markdown(
         letter-spacing: 0.5px;
     }
 
+    /* Download Buttons */
+    div.stDownloadButton > button {
+        font-family: var(--mono) !important;
+        font-size: 11px !important;
+        letter-spacing: 0.5px !important;
+        padding: 6px 12px !important;
+        border: 1px solid var(--ink) !important;
+        background: var(--paper) !important;
+        color: var(--ink) !important;
+        border-radius: 2px !important;
+        width: 100% !important;
+    }
+    div.stDownloadButton > button:hover {
+        background: var(--ink) !important;
+        color: var(--paper) !important;
+    }
+
     /* Footer */
     .documind-footer {
-        margin-top: 40px;
-        padding-top: 16px;
+        margin-top: 36px;
+        padding-top: 14px;
         border-top: 1px solid var(--rule);
         font-family: var(--mono);
         font-size: 11px;
@@ -462,7 +563,6 @@ with st.sidebar:
     settings.CHUNK_OVERLAP = st.slider("Chunk Overlap (chars)", 50, 500, settings.CHUNK_OVERLAP, 25)
     settings.TOP_K_CHUNKS = st.slider("Top-K Retrieved Chunks", 2, 10, settings.TOP_K_CHUNKS)
 
-    # Active status info
     active_key_status = "Configured" if settings.is_api_key_configured or settings.ENABLE_MOCK_FALLBACK else "Key Missing"
     st.markdown(
         f"""
@@ -496,7 +596,6 @@ st.markdown(
 col_left, col_right = st.columns([1.1, 1.0], gap="large")
 
 with col_left:
-    # Calculate live charcount
     current_text = st.session_state.doc_text_input
     char_len = len(current_text) if current_text else 0
 
@@ -513,18 +612,19 @@ with col_left:
     doc_text = st.text_area(
         label="01 — the document",
         placeholder="Paste an article, report, contract, or essay here…",
-        height=320,
+        height=240,
         label_visibility="collapsed",
         key="doc_text_area",
     )
     if doc_text != st.session_state.doc_text_input:
         st.session_state.doc_text_input = doc_text
 
-    # File uploader
+    # File bar
+    st.markdown('<div style="font-family: var(--mono); font-size: 12px; color: var(--ink-soft); margin-top: 8px; margin-bottom: 2px;">or upload a file:</div>', unsafe_allow_html=True)
     uploaded_file = st.file_uploader(
-        "or upload a file:",
+        label="or upload a file:",
         type=["txt", "pdf"],
-        label_visibility="visible",
+        label_visibility="collapsed",
     )
 
     if uploaded_file is not None:
@@ -534,9 +634,9 @@ with col_left:
             st.session_state.extracted_doc = parsed_doc
             st.markdown(
                 f"""
-                <div style="margin-top: 6px;">
+                <div style="margin-top: 4px; margin-bottom: 8px;">
                     <span class="metric-badge">📄 {uploaded_file.name}</span>
-                    <span class="metric-badge">({parsed_doc.page_count} pages, {parsed_doc.char_count:,} chars)</span>
+                    <span class="metric-badge">({parsed_doc.page_count}p, {parsed_doc.char_count:,} chars)</span>
                     <span class="rag-badge">{'⚡ Vector RAG' if parsed_doc.char_count > settings.DIRECT_PROCESSING_CHAR_LIMIT else 'Direct'}</span>
                 </div>
                 """,
@@ -550,30 +650,23 @@ with col_left:
     else:
         st.session_state.extracted_doc = None
 
-    # Mode Buttons matching .mode-btn
-    st.markdown('<div style="font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--ink-soft); margin-top: 14px; margin-bottom: 6px;">Select Mode</div>', unsafe_allow_html=True)
-    m_col1, m_col2, m_col3 = st.columns(3)
+    # Mode Selector - Strongly works with native radio styled as .mode-btn
+    st.markdown('<div class="pane-label" style="margin-top: 14px; margin-bottom: 6px;"><span>Select Mode</span></div>', unsafe_allow_html=True)
+    
+    mode_options = ["Summarize", "Key Points", "Simplify"]
+    mode_map = {"Summarize": "summarize", "Key Points": "key_points", "Simplify": "simplify"}
+    inv_mode_map = {"summarize": "Summarize", "key_points": "Key Points", "simplify": "Simplify"}
 
-    with m_col1:
-        sum_active = "background: var(--highlight) !important; color: #fff !important; border-color: var(--highlight) !important;" if st.session_state.current_mode == "summarize" else ""
-        st.markdown(f"<style>div.row-widget.stButton:has(button#btn-sum) button {{ {sum_active} }}</style>", unsafe_allow_html=True)
-        if st.button("Summarize", key="btn-sum", use_container_width=True):
-            st.session_state.current_mode = "summarize"
-            st.rerun()
-
-    with m_col2:
-        kp_active = "background: var(--highlight) !important; color: #fff !important; border-color: var(--highlight) !important;" if st.session_state.current_mode == "key_points" else ""
-        st.markdown(f"<style>div.row-widget.stButton:has(button#btn-kp) button {{ {kp_active} }}</style>", unsafe_allow_html=True)
-        if st.button("Key Points", key="btn-kp", use_container_width=True):
-            st.session_state.current_mode = "key_points"
-            st.rerun()
-
-    with m_col3:
-        simp_active = "background: var(--highlight) !important; color: #fff !important; border-color: var(--highlight) !important;" if st.session_state.current_mode == "simplify" else ""
-        st.markdown(f"<style>div.row-widget.stButton:has(button#btn-simp) button {{ {simp_active} }}</style>", unsafe_allow_html=True)
-        if st.button("Simplify", key="btn-simp", use_container_width=True):
-            st.session_state.current_mode = "simplify"
-            st.rerun()
+    default_mode_idx = mode_options.index(inv_mode_map.get(st.session_state.current_mode, "Summarize"))
+    selected_mode_label = st.radio(
+        label="Select Mode",
+        options=mode_options,
+        index=default_mode_idx,
+        horizontal=True,
+        label_visibility="collapsed",
+        key="mode_radio_selector",
+    )
+    st.session_state.current_mode = mode_map[selected_mode_label]
 
     # Run Row
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
@@ -582,120 +675,104 @@ with col_left:
 
 with col_right:
     mode_display = st.session_state.current_mode.replace("_", " ")
+
     st.markdown(
         f"""
-        <div class="margin-pane">
-            <div class="pane-label">
-                <span>02 — the reading</span>
-                <span style="color: var(--highlight);">{mode_display}</span>
-            </div>
+        <div class="pane-label" style="padding-left: 18px;">
+            <span>02 — the reading</span>
+            <span style="color: var(--highlight);">{mode_display}</span>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    output_slot = st.empty()
+    # Everything renders STRICTLY inside this bordered paper container
+    with st.container(border=True):
+        output_slot = st.empty()
 
-    if not st.session_state.analysis_result and not run_clicked:
-        output_slot.markdown(
-            """
-            <div class="margin-pane">
-                <div class="output-box">
-                    <span class="output-empty">Your analysis will appear here, streamed in as it's written…</span>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    if run_clicked:
-        doc = st.session_state.extracted_doc
-        if not doc or not doc.full_text.strip():
+        if not st.session_state.analysis_result and not run_clicked:
             output_slot.markdown(
-                """
-                <div class="margin-pane">
-                    <div class="output-box" style="border-color: #d9534f; color: #a94442;">
-                        Paste some text or choose a file first.
-                    </div>
-                </div>
-                """,
+                '<div class="output-empty">Your analysis will appear here, streamed in as it\'s written…</div>',
                 unsafe_allow_html=True,
             )
-        else:
-            # Prepare services
-            llm_service = LLMService()
-            chunker = TextChunker(chunk_size=settings.CHUNK_SIZE, chunk_overlap=settings.CHUNK_OVERLAP)
-            vector_store = VectorStore(embedding_service=SemanticEmbeddingService())
-            rag_engine = RAGEngine(llm_service=llm_service, chunker=chunker, vector_store=vector_store)
 
-            mode = AnalysisMode(st.session_state.current_mode)
-
-            if rag_engine.is_large_document(doc.full_text):
-                chunks = chunker.chunk_document(doc)
-                vector_store.clear()
-                vector_store.add_chunks(chunks)
-                st.session_state.retrieved_chunks = rag_engine.retrieve_context(mode=mode, top_k_per_query=settings.TOP_K_CHUNKS)
-
-            async def get_stream():
-                async for token in rag_engine.process_and_stream(doc=doc, mode=mode):
-                    yield token
-
-            def sync_stream(async_generator):
-                loop = asyncio.new_event_loop()
-                try:
-                    while True:
-                        try:
-                            token = loop.run_until_complete(async_generator.__anext__())
-                            yield token
-                        except StopAsyncIteration:
-                            break
-                finally:
-                    loop.close()
-
-            try:
-                with output_slot.container():
-                    st.markdown('<div class="margin-pane"><div class="output-box">', unsafe_allow_html=True)
-                    result = st.write_stream(sync_stream(get_stream()))
-                    st.markdown('</div></div>', unsafe_allow_html=True)
-                    st.session_state.analysis_result = result
-            except Exception as exc:
+        if run_clicked:
+            doc = st.session_state.extracted_doc
+            if not doc or not doc.full_text.strip():
                 output_slot.markdown(
-                    f"""
-                    <div class="margin-pane">
-                        <div class="output-box" style="border-color: #d9534f; color: #a94442;">
-                            Error: {exc}
-                        </div>
-                    </div>
-                    """,
+                    '<div style="color: #a94442; font-family: var(--mono); font-size: 13px;">Paste some text or choose a file first.</div>',
                     unsafe_allow_html=True,
                 )
+            else:
+                llm_service = LLMService()
+                chunker = TextChunker(chunk_size=settings.CHUNK_SIZE, chunk_overlap=settings.CHUNK_OVERLAP)
+                vector_store = VectorStore(embedding_service=SemanticEmbeddingService())
+                rag_engine = RAGEngine(llm_service=llm_service, chunker=chunker, vector_store=vector_store)
 
-    elif st.session_state.analysis_result:
-        with output_slot.container():
-            st.markdown(
-                f"""
-                <div class="margin-pane">
-                    <div class="output-box">
-                        {st.session_state.analysis_result}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+                mode = AnalysisMode(st.session_state.current_mode)
 
-    # Actions when result exists
+                if rag_engine.is_large_document(doc.full_text):
+                    chunks = chunker.chunk_document(doc)
+                    vector_store.clear()
+                    vector_store.add_chunks(chunks)
+                    st.session_state.retrieved_chunks = rag_engine.retrieve_context(mode=mode, top_k_per_query=settings.TOP_K_CHUNKS)
+
+                async def get_stream():
+                    async for token in rag_engine.process_and_stream(doc=doc, mode=mode):
+                        yield token
+
+                def sync_stream(async_generator):
+                    loop = asyncio.new_event_loop()
+                    try:
+                        while True:
+                            try:
+                                token = loop.run_until_complete(async_generator.__anext__())
+                                yield token
+                            except StopAsyncIteration:
+                                break
+                    finally:
+                        loop.close()
+
+                try:
+                    result = output_slot.write_stream(sync_stream(get_stream()))
+                    st.session_state.analysis_result = result
+                except Exception as exc:
+                    output_slot.markdown(
+                        f'<div style="color: #a94442; font-family: var(--mono); font-size: 13px;">Error: {exc}</div>',
+                        unsafe_allow_html=True,
+                    )
+
+        elif st.session_state.analysis_result:
+            output_slot.markdown(st.session_state.analysis_result)
+
+    # Download Actions (PDF, Markdown, Text)
     if st.session_state.analysis_result:
-        col_d1, col_d2 = st.columns(2)
+        st.markdown("<div style='margin-top: 12px;'></div>", unsafe_allow_html=True)
+        col_d1, col_d2, col_d3 = st.columns(3)
+
         with col_d1:
+            try:
+                pdf_bytes = generate_pdf(st.session_state.analysis_result, st.session_state.current_mode)
+                st.download_button(
+                    label="📥 Download PDF",
+                    data=pdf_bytes,
+                    file_name=f"documind_{st.session_state.current_mode}.pdf",
+                    mime="application/pdf",
+                )
+            except Exception as e:
+                st.caption(f"PDF export error: {e}")
+
+        with col_d2:
             st.download_button(
-                "Download Markdown (.md)",
+                label="📝 Download Markdown",
                 data=st.session_state.analysis_result,
                 file_name=f"documind_{st.session_state.current_mode}.md",
                 mime="text/markdown",
             )
-        with col_d2:
+
+        with col_d3:
             st.download_button(
-                "Download Text (.txt)",
+                label="📄 Download Text",
                 data=st.session_state.analysis_result,
                 file_name=f"documind_{st.session_state.current_mode}.txt",
                 mime="text/plain",
@@ -706,7 +783,7 @@ with col_right:
 st.markdown(
     """
     <footer class="documind-footer">
-      <span>DocuMind AI — built with Vibe Coding</span>
+      <span>DocuMind AI</span>
       <span>reading desk ready</span>
     </footer>
     """,
