@@ -59,13 +59,20 @@ Never expose API keys in frontend code or commit `.env` to GitHub.
 
 ## Run Locally
 
-``` bash
+#### Option A: FastAPI Web App (HTML5 Frontend)
+```bash
+# Start with Uvicorn (hot-reload enabled)
 uvicorn main:app --reload --port 8080
 ```
-
-Open http://localhost:8080.
-
+Open **http://localhost:8080** in your browser.  
 API documentation: http://localhost:8080/docs
+
+#### Option B: Streamlit Interactive Desk
+```bash
+# Launch the Streamlit dashboard
+streamlit run streamlit_app.py
+```
+Open **http://localhost:8501** in your browser to use the interactive reading desk with live streaming, model provider selection, and vector chunk inspector.
 
 ## Architecture
 
