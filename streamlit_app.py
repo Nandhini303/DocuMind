@@ -92,12 +92,76 @@ st.markdown(
 
     /* Sidebar Styling */
     [data-testid="stSidebar"] {
-        background-color: #eae4d8 !important;
+        background-color: #ede7da !important;
         border-right: 1px solid var(--rule) !important;
     }
-    [data-testid="stSidebar"] * {
-        font-family: var(--mono) !important;
+    
+    /* Ensure icon fonts are never overridden */
+    [data-testid="stSidebarCollapseButton"] span,
+    [data-testid="stSidebarCollapseButton"] i,
+    button[aria-label*="password"] span,
+    button[aria-label*="password"] i,
+    .material-symbols-rounded,
+    .material-symbols-outlined,
+    [data-testid="stIcon"] {
+        font-family: "Material Symbols Rounded", "Material Symbols Outlined", sans-serif !important;
+    }
+
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        font-family: var(--serif) !important;
+        font-size: 1.25rem !important;
         color: var(--ink) !important;
+        font-weight: 600 !important;
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    [data-testid="stSidebar"] .sidebar-section-tag {
+        font-family: var(--mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--highlight);
+        font-weight: 600;
+        margin-top: 14px;
+        margin-bottom: 4px;
+    }
+
+    [data-testid="stSidebar"] label p {
+        font-family: var(--mono) !important;
+        font-size: 11px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.8px !important;
+        color: var(--ink-soft) !important;
+    }
+
+    [data-testid="stSidebar"] input,
+    [data-testid="stSidebar"] div[data-baseweb="select"] > div {
+        background-color: var(--margin) !important;
+        border: 1px solid var(--rule) !important;
+        border-radius: 3px !important;
+        color: var(--ink) !important;
+        font-family: var(--mono) !important;
+        font-size: 12.5px !important;
+    }
+
+    [data-testid="stSidebar"] input:focus,
+    [data-testid="stSidebar"] div[data-baseweb="select"]:focus-within {
+        border-color: var(--highlight) !important;
+        box-shadow: 0 0 0 2px var(--highlight-soft) !important;
+    }
+
+    .sidebar-info-card {
+        background: var(--margin);
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+        padding: 10px 12px;
+        margin-top: 16px;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-soft);
+        line-height: 1.5;
     }
 
     /* Header matching original HTML */
@@ -351,8 +415,9 @@ if "retrieved_chunks" not in st.session_state:
 
 # ---------------- Sidebar: Settings ---------------- #
 with st.sidebar:
-    st.markdown("### Settings & Providers")
+    st.markdown("### Desk Settings")
 
+    st.markdown('<div class="sidebar-section-tag">01 // LLM Engine</div>', unsafe_allow_html=True)
     provider_options = ["OpenAI", "Anthropic Claude", "Google Gemini", "Offline Mock Mode"]
     default_idx = 0
     if settings.ENABLE_MOCK_FALLBACK:
@@ -362,10 +427,10 @@ with st.sidebar:
     elif settings.GEMINI_API_KEY and not settings.OPENAI_API_KEY:
         default_idx = 2
 
-    chosen_provider = st.selectbox("LLM Provider", options=provider_options, index=default_idx)
+    chosen_provider = st.selectbox("Active Provider", options=provider_options, index=default_idx)
 
     if chosen_provider == "OpenAI":
-        key = st.text_input("OpenAI API Key", value=settings.OPENAI_API_KEY or "", type="password")
+        key = st.text_input("OpenAI API Key", value=settings.OPENAI_API_KEY or "", type="password", help="Stored safely in session")
         if key:
             settings.OPENAI_API_KEY = key
         model = st.selectbox("Model", options=["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"], index=0)
@@ -373,7 +438,7 @@ with st.sidebar:
         settings.ENABLE_MOCK_FALLBACK = False
 
     elif chosen_provider == "Anthropic Claude":
-        key = st.text_input("Claude API Key", value=settings.ANTHROPIC_API_KEY or "", type="password")
+        key = st.text_input("Claude API Key", value=settings.ANTHROPIC_API_KEY or "", type="password", help="Stored safely in session")
         if key:
             settings.ANTHROPIC_API_KEY = key
         model = st.selectbox("Model", options=["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"], index=0)
@@ -381,7 +446,7 @@ with st.sidebar:
         settings.ENABLE_MOCK_FALLBACK = False
 
     elif chosen_provider == "Google Gemini":
-        key = st.text_input("Gemini API Key", value=settings.GEMINI_API_KEY or "", type="password")
+        key = st.text_input("Gemini API Key", value=settings.GEMINI_API_KEY or "", type="password", help="Stored safely in session")
         if key:
             settings.GEMINI_API_KEY = key
         model = st.selectbox("Model", options=["gemini-2.0-flash", "gemini-1.5-pro"], index=0)
@@ -389,14 +454,27 @@ with st.sidebar:
         settings.ENABLE_MOCK_FALLBACK = False
 
     else:
-        st.info("Mock mode enabled — no API key required.")
+        st.info("Offline Mock Mode enabled — no API key needed.")
         settings.ENABLE_MOCK_FALLBACK = True
 
-    st.markdown("---")
-    st.markdown("### RAG Settings")
-    settings.CHUNK_SIZE = st.slider("Chunk Size", 400, 2500, settings.CHUNK_SIZE, 100)
-    settings.CHUNK_OVERLAP = st.slider("Chunk Overlap", 50, 500, settings.CHUNK_OVERLAP, 25)
-    settings.TOP_K_CHUNKS = st.slider("Top-K Chunks", 2, 10, settings.TOP_K_CHUNKS)
+    st.markdown('<div class="sidebar-section-tag">02 // Vector RAG Parameters</div>', unsafe_allow_html=True)
+    settings.CHUNK_SIZE = st.slider("Chunk Size (chars)", 400, 2500, settings.CHUNK_SIZE, 100)
+    settings.CHUNK_OVERLAP = st.slider("Chunk Overlap (chars)", 50, 500, settings.CHUNK_OVERLAP, 25)
+    settings.TOP_K_CHUNKS = st.slider("Top-K Retrieved Chunks", 2, 10, settings.TOP_K_CHUNKS)
+
+    # Active status info
+    active_key_status = "Configured" if settings.is_api_key_configured or settings.ENABLE_MOCK_FALLBACK else "Key Missing"
+    st.markdown(
+        f"""
+        <div class="sidebar-info-card">
+            <div><strong>Engine:</strong> {chosen_provider}</div>
+            <div><strong>Model:</strong> {settings.active_model}</div>
+            <div><strong>Status:</strong> <span style="color: {'#2e7d32' if active_key_status == 'Configured' else '#c62828'}; font-weight:600;">{active_key_status}</span></div>
+            <div><strong>RAG Routing:</strong> &gt; 12,000 chars</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # ---------------- Header ---------------- #
