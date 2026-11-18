@@ -130,11 +130,34 @@ st.markdown(
     .material-symbols-rounded,
     .material-symbols-outlined,
     [data-testid="stSidebarCollapseButton"] span,
-    [data-testid="stSidebarCollapseButton"] i,
-    button[aria-label*="password"] span,
-    button[aria-label*="password"] i {
+    [data-testid="stSidebarCollapseButton"] i {
         font-family: "Material Symbols Rounded", "Material Symbols Outlined", sans-serif !important;
         font-style: normal !important;
+    }
+
+    /* Always hide the password visibility/eye toggle to prevent exposing API keys */
+    button[aria-label*="password"],
+    button[aria-label*="Password"],
+    button[aria-label*="Show password"],
+    button[aria-label*="Hide password"],
+    button[aria-label*="show password"],
+    button[aria-label*="hide password"],
+    [data-testid="stSidebar"] button[aria-label*="password"],
+    [data-testid="stSidebar"] button[aria-label*="Show"],
+    [data-testid="stSidebar"] button[aria-label*="Hide"] {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+
+    /* Force password masking and security blur */
+    input[type="password"] {
+        -webkit-text-security: disc !important;
+        text-security: disc !important;
+        letter-spacing: 2px !important;
+        filter: blur(0.4px);
     }
 
     /* Sidebar Styling */
@@ -531,25 +554,49 @@ with st.sidebar:
     chosen_provider = st.selectbox("Active Provider", options=provider_options, index=default_idx)
 
     if chosen_provider == "OpenAI":
-        key = st.text_input("OpenAI API Key", value=settings.OPENAI_API_KEY or "", type="password", help="Stored safely in session")
-        if key:
-            settings.OPENAI_API_KEY = key
+        has_key = bool(settings.OPENAI_API_KEY)
+        key_placeholder = "••••••••••••••••••••••••••••••••" if has_key else "Paste OpenAI key here"
+        override_key = st.text_input(
+            "OpenAI API Key",
+            value="",
+            type="password",
+            placeholder=key_placeholder,
+            help="API keys are securely masked and can never be toggled or viewed",
+        )
+        if override_key.strip():
+            settings.OPENAI_API_KEY = override_key.strip()
         model = st.selectbox("Model", options=["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"], index=0)
         settings.OPENAI_MODEL = model
         settings.ENABLE_MOCK_FALLBACK = False
 
     elif chosen_provider == "Anthropic Claude":
-        key = st.text_input("Claude API Key", value=settings.ANTHROPIC_API_KEY or "", type="password", help="Stored safely in session")
-        if key:
-            settings.ANTHROPIC_API_KEY = key
+        has_key = bool(settings.ANTHROPIC_API_KEY)
+        key_placeholder = "••••••••••••••••••••••••••••••••" if has_key else "Paste Claude key here"
+        override_key = st.text_input(
+            "Claude API Key",
+            value="",
+            type="password",
+            placeholder=key_placeholder,
+            help="API keys are securely masked and can never be toggled or viewed",
+        )
+        if override_key.strip():
+            settings.ANTHROPIC_API_KEY = override_key.strip()
         model = st.selectbox("Model", options=["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"], index=0)
         settings.ANTHROPIC_MODEL = model
         settings.ENABLE_MOCK_FALLBACK = False
 
     elif chosen_provider == "Google Gemini":
-        key = st.text_input("Gemini API Key", value=settings.GEMINI_API_KEY or "", type="password", help="Stored safely in session")
-        if key:
-            settings.GEMINI_API_KEY = key
+        has_key = bool(settings.GEMINI_API_KEY)
+        key_placeholder = "••••••••••••••••••••••••••••••••" if has_key else "Paste Gemini key here"
+        override_key = st.text_input(
+            "Gemini API Key",
+            value="",
+            type="password",
+            placeholder=key_placeholder,
+            help="API keys are securely masked and can never be toggled or viewed",
+        )
+        if override_key.strip():
+            settings.GEMINI_API_KEY = override_key.strip()
         model = st.selectbox("Model", options=["gemini-2.0-flash", "gemini-1.5-pro"], index=0)
         settings.GEMINI_MODEL = model
         settings.ENABLE_MOCK_FALLBACK = False
