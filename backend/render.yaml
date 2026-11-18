@@ -9,6 +9,10 @@ services:
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false   # set manually in the Render dashboard — never commit real keys
+      - key: ANTHROPIC_MODEL
+        value: claude-3-5-sonnet-20241022
       - key: PORT
         value: 8080
+      - key: ENVIRONMENT
+        value: production
     healthCheckPath: /api/health
