@@ -18,6 +18,23 @@ if str(backend_dir) not in sys.path:
 
 import streamlit as st
 from app.core.config import settings
+
+# Load secrets from Streamlit Cloud secrets.toml into environment and settings
+try:
+    if hasattr(st, "secrets"):
+        for key in ["OPENAI_API_KEY", "OPENAI_API", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"]:
+            if key in st.secrets:
+                val = str(st.secrets[key]).strip()
+                os.environ[key] = val
+                if key in ("OPENAI_API_KEY", "OPENAI_API"):
+                    settings.OPENAI_API_KEY = val
+                elif key == "ANTHROPIC_API_KEY":
+                    settings.ANTHROPIC_API_KEY = val
+                elif key == "GEMINI_API_KEY":
+                    settings.GEMINI_API_KEY = val
+except Exception:
+    pass
+
 from app.models.schemas import AnalysisMode
 from app.services.document_parser import DocumentParser, ExtractedDocument
 from app.services.text_chunker import TextChunker
